@@ -13,9 +13,8 @@ const Navbar = () => {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/dashboard', name: 'Dashboard' },
-    { href: '/tasks', name: 'Tasks' },
-    { href: '/projects', name: 'Projects' },
+    { href: '/home', name: 'Dashboard' },
+    { href: '/task', name: 'Tasks' },
   ];
 
   return (
@@ -25,7 +24,7 @@ const Navbar = () => {
           
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/" className="text-2xl font-bold text-slate-800">
+            <Link href="/home" className="text-2xl font-bold text-slate-800">
               Task Manager
             </Link>
           </div>
