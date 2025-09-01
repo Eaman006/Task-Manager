@@ -1,5 +1,7 @@
 "use client"
-import React from 'react'
+import React, { useState } from 'react'
+import { useAuth } from '../hooks/useAuth'
+import { useRouter } from 'next/navigation'
 const GoogleIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -35,6 +37,22 @@ const GoogleIcon = (props) => (
 
 
 const page = () => {
+  const { signInWithGoogle, loading } = useAuth();
+  const router = useRouter();
+  const [error, setError] = useState('');
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setError('');
+      await signInWithGoogle();
+      // Redirect to home page after successful login
+      router.push('/home');
+    } catch (error) {
+      console.error('Sign in error:', error);
+      setError('Failed to sign in with Google. Please try again.');
+    }
+  };
+
   return (
     <div>
        <style jsx global>{`
@@ -85,11 +103,25 @@ const page = () => {
 
                 <div className="mt-10">
                   <button
-                    className="group relative flex w-full items-center justify-center gap-3 rounded-lg bg-white px-5 py-3.5 text-base font-semibold text-slate-800 transition-transform duration-300 hover:scale-105 active:scale-100"
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                    className="group relative flex w-full items-center justify-center gap-3 rounded-lg bg-white px-5 py-3.5 text-base font-semibold text-slate-800 transition-transform duration-300 hover:scale-105 active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <GoogleIcon />
-                    <span className="relative">Sign in with Google</span>
+                    {loading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-800"></div>
+                    ) : (
+                      <GoogleIcon />
+                    )}
+                    <span className="relative">
+                      {loading ? 'Signing in...' : 'Sign in with Google'}
+                    </span>
                   </button>
+                  
+                  {error && (
+                    <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                      <p className="text-red-300 text-sm">{error}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-8 text-center">
