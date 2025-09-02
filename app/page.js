@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, CheckCircle, Star } from 'lucide-react';
+import Image from 'next/image';
 
 
 export default function Home() {
@@ -14,9 +15,10 @@ export default function Home() {
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(45rem_45rem_at_top,theme(colors.indigo.100),white)] opacity-20" />
           
           <div className="max-w-3xl text-center mx-auto">
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl leading-tight">
+            <div className='flex'><Image src="/logo.png" width={70}height={50}alt='logo' className='p-2'></Image> 
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl leading-tight flex text-center">              
               TaskManager
-            </h1>
+            </h1></div>
             <div className="flex justify-center items-center gap-2 mb-4">
                 <div className="flex text-yellow-400">
                     <Star fill="currentColor" className="w-5 h-5" />
