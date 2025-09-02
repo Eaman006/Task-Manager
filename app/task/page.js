@@ -24,7 +24,7 @@ const getStatusPill = (status) => {
         case 'Pending': return <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">{status}</span>;
     }
 };
-const page = () => {
+const Page = () => {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [tasks, setTasks] = useState([]);
@@ -244,4 +244,4 @@ const page = () => {
   )
 }
 
-export default page
+export default Page

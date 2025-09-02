@@ -33,7 +33,7 @@ const getPriorityPill = (priority) => {
 };
 
 
-const page = () => {
+export default function Page() {
   const { user, loading } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -431,4 +431,4 @@ const page = () => {
   )
 }
 
-export default page
+ 

@@ -36,7 +36,7 @@ const GoogleIcon = (props) => (
 );
 
 
-const page = () => {
+const Page = () => {
   const { signInWithGoogle, loading, user } = useAuth();
   const router = useRouter();
   const [error, setError] = useState('');
@@ -150,4 +150,4 @@ const page = () => {
   )
 }
 
-export default page
+export default Page
