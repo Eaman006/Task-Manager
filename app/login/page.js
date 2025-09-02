@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useRouter } from 'next/navigation'
 const GoogleIcon = (props) => (
@@ -37,9 +37,15 @@ const GoogleIcon = (props) => (
 
 
 const page = () => {
-  const { signInWithGoogle, loading } = useAuth();
+  const { signInWithGoogle, loading, user } = useAuth();
   const router = useRouter();
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/home');
+    }
+  }, [loading, user, router]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -52,6 +58,8 @@ const page = () => {
       setError('Failed to sign in with Google. Please try again.');
     }
   };
+
+  if (loading || user) return null;
 
   return (
     <div>

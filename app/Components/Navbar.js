@@ -3,11 +3,14 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '../hooks/useAuth';
 
 const Navbar = () => {
   // State to manage mobile menu visibility
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, logout, loading } = useAuth();
+  const router = useRouter();
   
   // Hook to get the current URL path
   const pathname = usePathname();
@@ -48,16 +51,35 @@ const Navbar = () => {
 
           {/* Right side: CTA and User Avatar (Desktop) */}
           <div className="hidden md:flex items-center space-x-4">
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
-              New Task +
+            <button
+              onClick={async () => {
+                try {
+                  await logout();
+                  router.push('/login');
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              disabled={loading}
+              className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              logout
             </button>
-            <div className="w-9 h-9 bg-slate-300 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-2">
-              {/* User avatar image would go here */}
+            <div className="w-9 h-9 bg-slate-300 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 overflow-hidden">
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || 'User avatar'}
+                  className="w-9 h-9 object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
             </div>
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center">
+            <span className='text-white'>Menu</span>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-slate-600 hover:text-slate-800 hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
@@ -65,12 +87,12 @@ const Navbar = () => {
               <span className="sr-only">Open main menu</span>
               {isMenuOpen ? (
                 // Close Icon
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <svg className="block h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
                 // Hamburger Icon
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <svg className="block h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
               )}
@@ -97,9 +119,6 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-             <button className="w-full text-left mt-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors">
-              New Task +
-            </button>
           </div>
         </div>
       )}
