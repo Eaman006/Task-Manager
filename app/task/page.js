@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { PlusCircle, Search, FilePenLine, Trash2 } from 'lucide-react';
 import { db } from '../firebase/config';
-import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // Firestore-backed tasks will be loaded per-user; no local mock.
 
@@ -35,6 +35,8 @@ const Page = () => {
   const [formDueDate, setFormDueDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -105,6 +107,65 @@ const Page = () => {
     }
   };
 
+  const openEditModal = (task) => {
+    setEditingTask(task);
+    setFormName(task.name);
+    setFormPriority(task.priority);
+    setFormDueDate(task.dueDate);
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingTask(null);
+    setFormName("");
+    setFormPriority("Medium");
+    setFormDueDate("");
+    setSubmitError("");
+  };
+
+  const handleEditTask = async (e) => {
+    e.preventDefault();
+    if (!user || !editingTask) return;
+    try {
+      setSubmitting(true);
+      setSubmitError("");
+      const taskRef = doc(db, 'users', user.uid, 'tasks', editingTask.id);
+      
+      // Guard minimal validation
+      const trimmedName = formName.trim();
+      if (!trimmedName) {
+        throw new Error('Task name is required');
+      }
+      if (!formDueDate) {
+        throw new Error('Due date is required');
+      }
+
+      // Timeout safeguard so UI doesn't get stuck forever
+      const withTimeout = (promise, ms = 15000) =>
+        Promise.race([
+          promise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms))
+        ]);
+
+      await withTimeout(updateDoc(taskRef, {
+        name: formName.trim(),
+        priority: formPriority,
+        status: editingTask.status,
+        dueDate: formDueDate,
+        updatedAt: new Date().toISOString()
+      }));
+      
+      // Reset form and close modal
+      closeEditModal();
+    } catch (err) {
+      console.error('Failed to update task', err);
+      setSubmitError(err?.message || 'Failed to update task');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading || !user) return null;
 
   const normalized = (v = "") => String(v).toLowerCase();
@@ -161,6 +222,13 @@ const Page = () => {
                           </select>
                         </div>
                         <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                          <select value={editingTask?.status || 'Pending'} onChange={(e) => setEditingTask({...editingTask, status: e.target.value})} className="w-full border text-black border-slate-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="Pending">Pending</option>
+                            <option value="Done">Done</option>
+                          </select>
+                        </div>
+                        <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
                           <input value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} required type="date" className="w-full border border-slate-300 rounded-lg px-3 text-black py-2 focus:ring-blue-500 focus:border-blue-500" />
                         </div>
@@ -170,6 +238,43 @@ const Page = () => {
                         <div className="flex justify-end gap-2 pt-2">
                           <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer">Cancel</button>
                           <button disabled={submitting} type="submit" className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 cursor-pointer">{submitting ? 'Saving...' : 'Save Task'}</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* Edit Task Modal */}
+                {isEditModalOpen && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold text-slate-800">Edit Task</h2>
+                        <button onClick={closeEditModal} className="text-slate-500 hover:text-slate-700 cursor-pointer">✕</button>
+                      </div>
+                      <form onSubmit={handleEditTask} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Task Name</label>
+                          <input value={formName} onChange={(e) => setFormName(e.target.value)} required type="text" placeholder="Enter task name" className="w-full border text-black border-slate-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
+                          <select value={formPriority} onChange={(e) => setFormPriority(e.target.value)} className="w-full border text-black border-slate-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
+                          <input value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} required type="date" className="w-full border border-slate-300 rounded-lg px-3 text-black py-2 focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        {submitError && (
+                          <p className="text-sm text-red-600">{submitError}</p>
+                        )}
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button type="button" onClick={closeEditModal} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer">Cancel</button>
+                          <button disabled={submitting} type="submit" className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 cursor-pointer">{submitting ? 'Saving...' : 'Update Task'}</button>
                         </div>
                       </form>
                     </div>
@@ -198,7 +303,7 @@ const Page = () => {
                                         <td className="px-6 py-4">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}</td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-4">
-                                                <button className="font-medium text-blue-600 hover:text-blue-800"><FilePenLine className="w-5 h-5" /></button>
+                                                <button onClick={() => openEditModal(task)} className="font-medium text-blue-600 hover:text-blue-800"><FilePenLine className="w-5 h-5" /></button>
                                                 <button onClick={() => handleDeleteTask(task.id)} className="font-medium text-red-600 hover:text-red-800"><Trash2 className="w-5 h-5" /></button>
                                             </div>
                                         </td>
@@ -228,7 +333,7 @@ const Page = () => {
                                 </div>
                             </div>
                             <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-end gap-4">
-                                <button className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
+                                <button onClick={() => openEditModal(task)} className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
                                     <FilePenLine className="w-5 h-5" /> Edit
                                 </button>
                                 <button onClick={() => handleDeleteTask(task.id)} className="font-medium text-red-600 hover:text-red-800 flex items-center gap-1.5">
