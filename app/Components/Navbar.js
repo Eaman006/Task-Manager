@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
+import { Spinner } from './Loader';
 
 const Navbar = () => {
   // State to manage mobile menu visibility
@@ -61,9 +62,10 @@ const Navbar = () => {
                 }
               }}
               disabled={loading}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              logout
+              {loading ? <Spinner size="small" color="white" /> : null}
+              {loading ? 'Logging out...' : 'logout'}
             </button>
             <div className="w-9 h-9 bg-slate-300 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 overflow-hidden">
               {user?.photoURL ? (
@@ -133,9 +135,10 @@ const Navbar = () => {
                   }
                 }}
                 disabled={loading}
-                className="w-full bg-red-500 text-white px-4 py-3 rounded-lg text-base font-semibold cursor-pointer hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+                className="w-full bg-red-500 text-white px-4 py-3 rounded-lg text-base font-semibold cursor-pointer hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3 flex items-center justify-center gap-2"
               >
-                Logout
+                {loading ? <Spinner size="small" color="white" /> : null}
+                {loading ? 'Logging out...' : 'Logout'}
               </button>
               <div className="flex items-center space-x-3 px-3 py-2">
                 <div className="w-10 h-10 bg-slate-300 rounded-full cursor-pointer overflow-hidden">

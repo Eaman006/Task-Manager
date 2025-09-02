@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
+import { PageLoader } from './Loader';
 
 const PROTECTED_PREFIXES = ['/home', '/task'];
 
@@ -28,7 +29,11 @@ const ClientGuard = ({ children }) => {
     return null;
   }
 
-  if (isProtected && (loading || !user)) {
+  if (isProtected && loading) {
+    return <PageLoader text="Checking authentication..." />;
+  }
+  
+  if (isProtected && !user) {
     return null;
   }
 

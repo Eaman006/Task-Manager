@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { db } from '../firebase/config';
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, addDoc } from 'firebase/firestore';
 import { Line } from 'react-chartjs-2';
+import { PageLoader, Spinner } from '../Components/Loader';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -42,14 +43,20 @@ export default function Page() {
   const [formDueDate, setFormDueDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [tasksLoading, setTasksLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
+    setTasksLoading(true);
     const tasksCol = collection(db, 'users', user.uid, 'tasks');
     const q = query(tasksCol, orderBy('dueDate', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const next = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setTasks(next);
+      setTasksLoading(false);
+    }, (error) => {
+      console.error('Error loading tasks:', error);
+      setTasksLoading(false);
     });
     return () => unsubscribe();
   }, [user]);
@@ -261,7 +268,11 @@ export default function Page() {
     }
   }), []);
 
-  if (loading || !user) return null;
+  if (loading) {
+    return <PageLoader text="Loading dashboard..." />;
+  }
+  
+  if (!user) return null;
 
   return (
     <div>

@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { PlusCircle, Search, FilePenLine, Trash2 } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { PageLoader, Spinner, Skeleton } from '../Components/Loader';
 
 // Firestore-backed tasks will be loaded per-user; no local mock.
 
@@ -37,6 +38,9 @@ const Page = () => {
   const [submitError, setSubmitError] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [deletingTask, setDeletingTask] = useState(null);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -46,11 +50,16 @@ const Page = () => {
 
   useEffect(() => {
     if (!user) return;
+    setTasksLoading(true);
     const tasksCol = collection(db, 'users', user.uid, 'tasks');
     const q = query(tasksCol, orderBy('dueDate', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const next = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setTasks(next);
+      setTasksLoading(false);
+    }, (error) => {
+      console.error('Error loading tasks:', error);
+      setTasksLoading(false);
     });
     return () => unsubscribe();
   }, [user]);
@@ -100,10 +109,13 @@ const Page = () => {
   const handleDeleteTask = async (taskId) => {
     if (!user || !taskId) return;
     try {
+      setDeletingTask(taskId);
       const taskRef = doc(db, 'users', user.uid, 'tasks', taskId);
       await deleteDoc(taskRef);
     } catch (err) {
       console.error('Failed to delete task', err);
+    } finally {
+      setDeletingTask(null);
     }
   };
 
@@ -166,10 +178,26 @@ const Page = () => {
     }
   };
 
-  if (loading || !user) return null;
+  // Add search loading effect
+  useEffect(() => {
+    if (searchTerm) {
+      setSearching(true);
+      const timer = setTimeout(() => setSearching(false), 300);
+      return () => clearTimeout(timer);
+    } else {
+      setSearching(false);
+    }
+  }, [searchTerm]);
+
+  if (loading) {
+    return <PageLoader text="Authenticating..." />;
+  }
+  
+  if (!user) return null;
 
   const normalized = (v = "") => String(v).toLowerCase();
   const q = normalized(searchTerm);
+  
   const filteredTasks = q
     ? tasks.filter((t) => {
         const name = normalized(t.name);
@@ -192,7 +220,18 @@ const Page = () => {
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <div className="relative w-full sm:w-auto">
                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                           <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} type="text" placeholder="Search tasks..." className="pl-10 pr-4 py-2 w-full sm:w-64 border text-black border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" />
+                           <input 
+                             value={searchTerm} 
+                             onChange={(e) => setSearchTerm(e.target.value)} 
+                             type="text" 
+                             placeholder="Search tasks..." 
+                             className="pl-10 pr-4 py-2 w-full sm:w-64 border text-black border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" 
+                           />
+                           {searching && (
+                             <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                               <Spinner size="small" color="gray" />
+                             </div>
+                           )}
                         </div>
                         <button onClick={() => setIsModalOpen(true)} className="flex-shrink-0 flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors cursor-pointer">
                            <PlusCircle className="w-5 h-5" />
@@ -283,65 +322,193 @@ const Page = () => {
 
                 {/* --- Desktop Table View (hidden on mobile) --- */}
                 <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-slate-500">
-                            <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3">Task Name</th>
-                                    <th scope="col" className="px-6 py-3">Status</th>
-                                    <th scope="col" className="px-6 py-3">Priority</th>
-                                    <th scope="col" className="px-6 py-3">Due Date</th>
-                                    <th scope="col" className="px-6 py-3"><span className="sr-only">Actions</span></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredTasks.map((task) => (
-                                    <tr key={task.id} className="bg-white border-b hover:bg-slate-50">
-                                        <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{task.name}</th>
-                                        <td className="px-6 py-4">{getStatusPill(task.status)}</td>
-                                        <td className="px-6 py-4">{getPriorityPill(task.priority)}</td>
-                                        <td className="px-6 py-4">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}</td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-4">
-                                                <button onClick={() => openEditModal(task)} className="font-medium text-blue-600 hover:text-blue-800"><FilePenLine className="w-5 h-5" /></button>
-                                                <button onClick={() => handleDeleteTask(task.id)} className="font-medium text-red-600 hover:text-red-800"><Trash2 className="w-5 h-5" /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                    {tasksLoading ? (
+                        <div className="p-8">
+                            <div className="flex items-center justify-center space-x-2 mb-6">
+                                <Spinner size="large" />
+                                <span className="text-slate-600">Loading tasks...</span>
+                            </div>
+                            <div className="space-y-4">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} className="flex items-center space-x-4 py-4 border-b border-slate-100 last:border-b-0">
+                                        <Skeleton className="w-1/3" />
+                                        <Skeleton className="w-20" />
+                                        <Skeleton className="w-24" />
+                                        <Skeleton className="w-28" />
+                                        <div className="flex space-x-2 ml-auto">
+                                            <Skeleton className="w-5 h-5" />
+                                            <Skeleton className="w-5 h-5" />
+                                        </div>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </div>
+                        </div>
+                    ) : filteredTasks.length === 0 ? (
+                        <div className="p-12 text-center">
+                            {searchTerm ? (
+                                <>
+                                    <div className="w-24 h-24 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
+                                        <Search className="w-12 h-12 text-slate-400" />
+                                    </div>
+                                    <h3 className="text-lg font-medium text-slate-900 mb-2">No tasks found</h3>
+                                    <p className="text-slate-500 mb-6">Try adjusting your search terms or create a new task</p>
+                                    <button 
+                                        onClick={() => setIsModalOpen(true)} 
+                                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                                    >
+                                        <PlusCircle className="w-5 h-5" />
+                                        Create Task
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-24 h-24 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
+                                        <PlusCircle className="w-12 h-12 text-slate-400" />
+                                    </div>
+                                    <h3 className="text-lg font-medium text-slate-900 mb-2">No tasks yet</h3>
+                                    <p className="text-slate-500 mb-6">Get started by creating your first task</p>
+                                    <button 
+                                        onClick={() => setIsModalOpen(true)} 
+                                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                                    >
+                                        <PlusCircle className="w-5 h-5" />
+                                        Create Task
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-slate-500">
+                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3">Task Name</th>
+                                        <th scope="col" className="px-6 py-3">Status</th>
+                                        <th scope="col" className="px-6 py-3">Priority</th>
+                                        <th scope="col" className="px-6 py-3">Due Date</th>
+                                        <th scope="col" className="px-6 py-3"><span className="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredTasks.map((task) => (
+                                        <tr key={task.id} className="bg-white border-b hover:bg-slate-50">
+                                            <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{task.name}</th>
+                                            <td className="px-6 py-4">{getStatusPill(task.status)}</td>
+                                            <td className="px-6 py-4">{getPriorityPill(task.priority)}</td>
+                                            <td className="px-6 py-4">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}</td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-4">
+                                                    <button onClick={() => openEditModal(task)} className="font-medium text-blue-600 hover:text-blue-800"><FilePenLine className="w-5 h-5" /></button>
+                                                    <button 
+                                                        onClick={() => handleDeleteTask(task.id)} 
+                                                        disabled={deletingTask === task.id}
+                                                        className="font-medium text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {deletingTask === task.id ? <Spinner size="small" /> : <Trash2 className="w-5 h-5" />}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
                 {/* --- Mobile Card View (hidden on desktop) --- */}
                 <div className="block md:hidden space-y-4">
-                    {filteredTasks.map((task) => (
-                        <div key={task.id} className="bg-white rounded-lg shadow-sm p-4">
-                            <div className="flex justify-between items-start">
-                                <span className="font-medium text-slate-900">{task.name}</span>
-                                {getPriorityPill(task.priority)}
-                            </div>
-                            <div className="mt-4 space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-slate-500">Status</span>
-                                    {getStatusPill(task.status)}
+                    {tasksLoading ? (
+                        <div className="space-y-4">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="bg-white rounded-lg shadow-sm p-4">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <Skeleton className="w-2/3" />
+                                        <Skeleton className="w-16 h-6 rounded-full" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between">
+                                            <Skeleton className="w-16" />
+                                            <Skeleton className="w-20 h-6 rounded-full" />
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <Skeleton className="w-20" />
+                                            <Skeleton className="w-24" />
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end space-x-4">
+                                        <Skeleton className="w-16 h-8" />
+                                        <Skeleton className="w-20 h-8" />
+                                    </div>
                                 </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-slate-500">Due Date</span>
-                                    <span className="font-medium text-slate-800">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}</span>
-                                </div>
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-end gap-4">
-                                <button onClick={() => openEditModal(task)} className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
-                                    <FilePenLine className="w-5 h-5" /> Edit
-                                </button>
-                                <button onClick={() => handleDeleteTask(task.id)} className="font-medium text-red-600 hover:text-red-800 flex items-center gap-1.5">
-                                    <Trash2 className="w-5 h-5" /> Delete
-                                </button>
-                            </div>
+                            ))}
                         </div>
-                    ))}
+                    ) : filteredTasks.length === 0 ? (
+                        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+                            {searchTerm ? (
+                                <>
+                                    <div className="w-20 h-20 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
+                                        <Search className="w-10 h-10 text-slate-400" />
+                                    </div>
+                                    <h3 className="text-lg font-medium text-slate-900 mb-2">No tasks found</h3>
+                                    <p className="text-slate-500 mb-6">Try adjusting your search terms or create a new task</p>
+                                    <button 
+                                        onClick={() => setIsModalOpen(true)} 
+                                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                                    >
+                                        <PlusCircle className="w-5 h-5" />
+                                        Create Task
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-20 h-20 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
+                                        <PlusCircle className="w-10 h-10 text-slate-400" />
+                                    </div>
+                                    <h3 className="text-lg font-medium text-slate-900 mb-2">No tasks yet</h3>
+                                    <p className="text-slate-500 mb-6">Get started by creating your first task</p>
+                                    <button 
+                                        onClick={() => setIsModalOpen(true)} 
+                                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                                    >
+                                        <PlusCircle className="w-5 h-5" />
+                                        Create Task
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    ) : (
+                        filteredTasks.map((task) => (
+                            <div key={task.id} className="bg-white rounded-lg shadow-sm p-4">
+                                <div className="flex justify-between items-start">
+                                    <span className="font-medium text-slate-900">{task.name}</span>
+                                    {getPriorityPill(task.priority)}
+                                </div>
+                                <div className="mt-4 space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Status</span>
+                                        {getStatusPill(task.status)}
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Due Date</span>
+                                        <span className="font-medium text-slate-800">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}</span>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-end gap-4">
+                                    <button onClick={() => openEditModal(task)} className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1.5">
+                                        <FilePenLine className="w-5 h-5" /> Edit
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteTask(task.id)} 
+                                        disabled={deletingTask === task.id}
+                                        className="font-medium text-red-600 hover:text-red-800 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {deletingTask === task.id ? <Spinner size="small" /> : <Trash2 className="w-5 h-5" />} Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>
