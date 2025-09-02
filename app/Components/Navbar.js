@@ -119,6 +119,40 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
+            
+            {/* Mobile Logout Button and User Avatar */}
+            <div className="pt-4 border-t border-slate-200 mt-4">
+              <button
+                onClick={async () => {
+                  try {
+                    await logout();
+                    router.push('/login');
+                    setIsMenuOpen(false); // Close menu after logout
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                disabled={loading}
+                className="w-full bg-red-500 text-white px-4 py-3 rounded-lg text-base font-semibold cursor-pointer hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+              >
+                Logout
+              </button>
+              <div className="flex items-center space-x-3 px-3 py-2">
+                <div className="w-10 h-10 bg-slate-300 rounded-full cursor-pointer overflow-hidden">
+                  {user?.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || 'User avatar'}
+                      className="w-10 h-10 object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : null}
+                </div>
+                <span className="text-slate-700 font-medium">
+                  {user?.displayName || user?.email || 'User'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
