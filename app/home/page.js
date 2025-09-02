@@ -274,7 +274,7 @@ export default function Page() {
                         <div className="flex justify-between items-center">
                             <div>
                                 <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
-                                <p className="text-slate-500 mt-1">Welcome back, here's a snapshot of your work.</p>
+                                <p className="text-slate-500 mt-1">Welcome back, here&apos;s a snapshot of your work.</p>
                             </div>
                             <button onClick={() => setIsModalOpen(true)} className="hidden lg:flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors cursor-pointer">
                                 <PlusCircle className="w-5 h-5" />
@@ -415,7 +415,7 @@ export default function Page() {
                                  <p className="text-sm text-slate-600">
                                    <span className="font-semibold">{ev.by}</span>{' '}
                                    {ev.type === 'completed' ? 'completed the task' : 'added the task'}{' '}
-                                   <span className="font-medium">"{ev.title}"</span>.
+                                   <span className="font-medium">&ldquo;{ev.title}&rdquo;</span>.
                                    <span className="block text-slate-400">{getRelativeTime(ev.at)}</span>
                                  </p>
                                </li>
